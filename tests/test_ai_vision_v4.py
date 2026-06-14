@@ -1626,6 +1626,20 @@ function openImg(el) {{
         f.write(html)
     print(f"\n🌐 HTML Rapor: {os.path.abspath(html_path)}")
 
+    # Cleanup temporary screenshots to prevent disk space bloat (since base64 is embedded in HTML)
+    try:
+        import glob
+        for d in [SCREENSHOT_DIR, os.path.join(REPORT_DIR, "annotated"), os.path.join(REPORT_DIR, "crops")]:
+            if os.path.exists(d):
+                for f_path in glob.glob(os.path.join(d, "*")):
+                    if os.path.isfile(f_path):
+                        try:
+                            os.remove(f_path)
+                        except Exception:
+                            pass
+    except Exception as e:
+        print(f"Error cleaning up screenshots: {e}")
+
 
 # ─── SESSION SONUNDA: ÖZET + OTOMATİK RAPOR AÇMA ─────────────────────────────
 
@@ -1664,30 +1678,32 @@ display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
         print(f"  [!] Rapor dosyası bulunamadı: {html_path}")
         return
 
-    import platform
-    import subprocess
-    import webbrowser
-
     opened = False
+    plat = platform.system()
+    if plat == "Windows":
+        try:
+            os.startfile(html_path)
+            opened = True
+            print(f"  🌐 Rapor tarayıcıda açılıyor...")
+        except Exception:
+            pass
+
     # Yöntem 1: webbrowser
-    try:
-        webbrowser.open(f"file:///{html_path.replace(os.sep, '/')}")
-        print(f"  🌐 Rapor tarayıcıda açılıyor...")
-        opened = True
-    except Exception:
-        pass
+    if not opened:
+        try:
+            opened = webbrowser.open(f"file:///{html_path.replace(os.sep, '/')}")
+            if opened:
+                print(f"  🌐 Rapor tarayıcıda açılıyor...")
+        except Exception:
+            pass
 
     # Yöntem 2: Platform spesifik
     if not opened:
         try:
-            plat = platform.system()
-            if plat == "Windows":
-                os.startfile(html_path)
-                opened = True
-            elif plat == "Darwin":
+            if plat == "Darwin":
                 subprocess.Popen(["open", html_path])
                 opened = True
-            else:
+            elif plat != "Windows":
                 subprocess.Popen(["xdg-open", html_path])
                 opened = True
         except Exception:

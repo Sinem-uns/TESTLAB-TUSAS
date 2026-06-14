@@ -30,35 +30,40 @@ def open_report():
         return
 
     opened = False
-    try:
-        webbrowser.open(f"file:///{REPORT_HTML.replace(os.sep, '/')}")
-        opened = True
-    except Exception:
-        pass
+    plat = platform.system()
+    if plat == "Windows":
+        try:
+            os.startfile(REPORT_HTML)
+            opened = True
+        except Exception:
+            pass
 
     if not opened:
         try:
-            plat = platform.system()
-            if plat == "Windows":
-                os.startfile(REPORT_HTML)
-                opened = True
-            elif plat == "Darwin":
+            opened = webbrowser.open(f"file:///{REPORT_HTML.replace(os.sep, '/')}")
+        except Exception:
+            pass
+
+    if not opened:
+        try:
+            if plat == "Darwin":
                 subprocess.Popen(["open", REPORT_HTML])
                 opened = True
-            else:
+            elif plat != "Windows":
                 subprocess.Popen(["xdg-open", REPORT_HTML])
                 opened = True
         except Exception:
             pass
 
+    url = f"file:///{REPORT_HTML.replace(os.sep, '/')}"
     if opened:
         try:
-            print(f"\n  [HTML] Rapor acildi: {REPORT_HTML}")
+            print(f"\n  [HTML] Rapor acildi: {url}")
         except Exception:
             pass
     else:
         try:
-            print(f"\n  Manuel acin: {REPORT_HTML}")
+            print(f"\n  [HTML] Rapor otomatik acilamadi, baglantiyi tiklayarak acabilirsiniz:\n  {url}")
         except Exception:
             pass
 
@@ -99,6 +104,22 @@ def run_real_training():
 
 
 def main():
+    # Sanity check for virtual environment / dependencies
+    try:
+        import pytest
+        import PyQt5
+    except ImportError:
+        print("\n" + "!" * 80)
+        print("  HATA: Gerekli kütüphaneler (pytest, PyQt5) bu Python ortamında bulunamadı!")
+        print("  Büyük olasılıkla VS Code'da sanal ortam (.venv) aktif ve bağımlılıklar eksik.")
+        print("-" * 80)
+        print("  ÇÖZÜM: Terminale 'deactivate' yazarak sanal ortamı kapatın ve ardından")
+        print("  global Python ortamıyla testi çalıştırın:")
+        print("  1) deactivate")
+        print("  2) python run_tests.py --inject-faults --no-train")
+        print("!" * 80 + "\n")
+        return 1
+
     parser = argparse.ArgumentParser(
         description="TUSAS TestLab — Kapsamlı Local Test Çalıştırıcı"
     )

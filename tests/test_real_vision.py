@@ -91,45 +91,57 @@ def _get_cropped_b64(pil_img, bbox) -> str:
 
 
 
-STATIC_FAULT_MAPPING = {
-    "ENG_001": "wrong_fill",
-    "ENG_002": "wrong_number",
-    "ENG_003": "wrong_color",
-    "ENG_004": "missing_bar",
-    "FUEL_001": "wrong_fill",
-    "FUEL_002": "wrong_number",
-    "FUEL_003": "wrong_color",
-    "ELEC_001": "wrong_number",
-    "ELEC_002": "wrong_unit",
-    "ENV_001": "missing_bar",
-    "ENV_002": "wrong_fill",
-    "ENV_003": "wrong_color",
-    "HYD_001": "missing_bar",
-    "RTR_001": "wrong_fill",
-    "RTR_002": "wrong_color",
-    "CASCADE_001": "missing_bar",
-    "CASCADE_002": "wrong_number",
-    "SENS_001": "false_valid",
-    "NOM_001": "spurious_text",
-    "COLOR_001": "wrong_fill",
-    "COLOR_002": "wrong_color",
-    "COLOR_003": "missing_bar",
-    "ANTI_001": "bad_anti",
-    "ANTI_002": "bad_anti",
-    "ANTI_003": "bad_anti",
-    "SCALE_001": "wrong_fill",
-    "SCALE_002": "wrong_color",
-    "UNIT_001": "wrong_unit",
-    "UNIT_002": "wrong_unit",
-    "WCA_001": "spurious_text",
-    "WCA_002": "wrong_number",
-    "PANEL_001": "spurious_text",
-    "PANEL_002": "spurious_text",
-    "VIS_001": "uncaught_anomaly"
-}
+SESSION_FAULT_MAPPING = {}
 
 def get_session_fault_mapping() -> dict:
-    return STATIC_FAULT_MAPPING
+    global SESSION_FAULT_MAPPING
+    if SESSION_FAULT_MAPPING:
+        return SESSION_FAULT_MAPPING
+
+    import random
+    rng = random.Random()  # uses time-based/random seed
+
+    # 1. Missed anomaly constraint: VIS_001 is always uncaught_anomaly
+    SESSION_FAULT_MAPPING["VIS_001"] = "uncaught_anomaly"
+
+    # 2. Anti-ice scenarios: ANTI_001, ANTI_002, ANTI_003 get bad_anti
+    anti_ids = ["ANTI_001", "ANTI_002", "ANTI_003"]
+    for aid in anti_ids:
+        SESSION_FAULT_MAPPING[aid] = "bad_anti"
+
+    # 3. Bar scenarios list
+    bar_scenarios = [
+        "ENG_001", "ENG_003", "ENG_004", "FUEL_001", "ENV_001", 
+        "ENV_002", "ENV_003", "HYD_001", "RTR_001", "RTR_002", 
+        "CASCADE_001", "NOM_001", "COLOR_001", "COLOR_002", 
+        "COLOR_003", "SCALE_001", "SCALE_002", "PANEL_001"
+    ]
+    # Shuffle bar scenarios
+    shuffled_bars = list(bar_scenarios)
+    rng.shuffle(shuffled_bars)
+
+    # Assign bar-related faults evenly
+    bar_faults = ["wrong_fill", "wrong_color", "missing_bar"]
+    for i, sid in enumerate(shuffled_bars):
+        fault = bar_faults[i % len(bar_faults)]
+        SESSION_FAULT_MAPPING[sid] = fault
+
+    # 4. Remaining scenarios (non-bar, non-anti-ice, non-VIS_001)
+    non_bar_scenarios = [
+        s.id for s in ALL_SCENARIOS 
+        if s.id not in bar_scenarios and s.id != "VIS_001" and s.id not in anti_ids
+    ]
+    # Shuffle remaining scenarios
+    shuffled_rem = list(non_bar_scenarios)
+    rng.shuffle(shuffled_rem)
+
+    # Assign remaining non-bar faults
+    rem_faults = ["wrong_number", "wrong_unit", "spurious_text", "false_valid"]
+    for i, sid in enumerate(shuffled_rem):
+        fault = rem_faults[i % len(rem_faults)]
+        SESSION_FAULT_MAPPING[sid] = fault
+
+    return SESSION_FAULT_MAPPING
 
 
 def _inject_known_render_fault(pencere, scenario, idx: int) -> str:
@@ -338,7 +350,12 @@ def pencere(app, monkeypatch):
 
 # ─── ANA TEST ─────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("scenario", ALL_SCENARIOS, ids=[s.id for s in ALL_SCENARIOS])
+import random
+SHUFFLED_SCENARIOS = list(ALL_SCENARIOS)
+# Use random seed to shuffle tests differently on every process run
+random.Random().shuffle(SHUFFLED_SCENARIOS)
+
+@pytest.mark.parametrize("scenario", SHUFFLED_SCENARIOS, ids=[s.id for s in SHUFFLED_SCENARIOS])
 def test_real_vision(pencere, scenario, request):
     inject_mode = request.config.getoption("--inject-faults")
     t0 = time.time()
@@ -671,3 +688,17 @@ def _save_html():
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"\n  [HTML] Rapor: {os.path.abspath(path)}")
+
+    # Cleanup temporary screenshots to prevent disk space bloat (since base64 is embedded in HTML)
+    try:
+        import glob
+        for d in [SCREENSHOT_DIR, os.path.join(REPORT_DIR, "annotated"), os.path.join(REPORT_DIR, "crops")]:
+            if os.path.exists(d):
+                for f_path in glob.glob(os.path.join(d, "*")):
+                    if os.path.isfile(f_path):
+                        try:
+                            os.remove(f_path)
+                        except Exception:
+                            pass
+    except Exception as e:
+        print(f"Error cleaning up screenshots: {e}")
