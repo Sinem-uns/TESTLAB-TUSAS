@@ -109,6 +109,12 @@ def get_session_fault_mapping() -> dict:
     for aid in anti_ids:
         SESSION_FAULT_MAPPING[aid] = "bad_anti"
 
+    # 2b. WCA scenarios: WCA_001, WCA_002, PANEL_002 get WCA-specific faults
+    wca_ids = ["WCA_001", "WCA_002", "PANEL_002"]
+    SESSION_FAULT_MAPPING["WCA_001"] = "wca_wrong_text"
+    SESSION_FAULT_MAPPING["WCA_002"] = "wca_wrong_color"
+    SESSION_FAULT_MAPPING["PANEL_002"] = "wca_missing"
+
     # 3. Bar scenarios list
     bar_scenarios = [
         "ENG_001", "ENG_003", "ENG_004", "FUEL_001", "ENV_001", 
@@ -126,10 +132,10 @@ def get_session_fault_mapping() -> dict:
         fault = bar_faults[i % len(bar_faults)]
         SESSION_FAULT_MAPPING[sid] = fault
 
-    # 4. Remaining scenarios (non-bar, non-anti-ice, non-VIS_001)
+    # 4. Remaining scenarios (non-bar, non-anti-ice, non-VIS_001, non-WCA)
     non_bar_scenarios = [
         s.id for s in ALL_SCENARIOS 
-        if s.id not in bar_scenarios and s.id != "VIS_001" and s.id not in anti_ids
+        if s.id not in bar_scenarios and s.id != "VIS_001" and s.id not in anti_ids and s.id not in wca_ids
     ]
     # Shuffle remaining scenarios
     shuffled_rem = list(non_bar_scenarios)
@@ -176,6 +182,46 @@ def _inject_known_render_fault(pencere, scenario, idx: int) -> str:
         bad_texts = ["ERR", "FAIL", "BUG", "XXX", "OFF-GRID", "UNSTBL", "N/A"]
         pencere.lbl_anti.setText(bad_texts[idx % len(bad_texts)])
         return "bad_anti"
+
+    if ft == "wca_wrong_color":
+        from PyQt5.QtWidgets import QLabel
+        wca_labels = []
+        if hasattr(pencere, "wca_lay") and pencere.wca_lay is not None:
+            for i in range(pencere.wca_lay.count()):
+                item = pencere.wca_lay.itemAt(i)
+                if item and item.widget() and isinstance(item.widget(), QLabel):
+                    wca_labels.append(item.widget())
+        if wca_labels:
+            lbl = wca_labels[idx % len(wca_labels)]
+            current_style = lbl.styleSheet()
+            if "#FF3333" in current_style:
+                lbl.setStyleSheet(current_style.replace("#FF3333", "#FFB000"))
+            elif "#FFB000" in current_style:
+                lbl.setStyleSheet(current_style.replace("#FFB000", "#FF3333"))
+            else:
+                lbl.setStyleSheet(current_style.replace("#00FF66", "#FF3333"))
+            lbl.update()
+        return "wca_wrong_color"
+
+    if ft == "wca_wrong_text":
+        from PyQt5.QtWidgets import QLabel
+        wca_labels = []
+        if hasattr(pencere, "wca_lay") and pencere.wca_lay is not None:
+            for i in range(pencere.wca_lay.count()):
+                item = pencere.wca_lay.itemAt(i)
+                if item and item.widget() and isinstance(item.widget(), QLabel):
+                    wca_labels.append(item.widget())
+        if wca_labels:
+            lbl = wca_labels[idx % len(wca_labels)]
+            lbl.setText("SPURIOUS UNEXPECTED ERROR")
+            lbl.update()
+        return "wca_wrong_text"
+
+    if ft == "wca_missing":
+        if hasattr(pencere, "wca_frame") and pencere.wca_frame is not None:
+            pencere.wca_frame.setVisible(False)
+            pencere.wca_frame.update()
+        return "wca_missing"
 
     if target_key is None:
         bad_texts = ["ERR", "FAIL", "BUG", "XXX", "OFF-GRID", "UNSTBL", "N/A"]
@@ -559,6 +605,9 @@ def _save_html():
                 "spurious_text": "Alakasız Yazı",
                 "false_valid": "Sahte Valid Göstergesi",
                 "bad_anti": "Geçersiz Anti-Ice",
+                "wca_wrong_text": "WCA Geçersiz Metin",
+                "wca_wrong_color": "WCA Hatalı Renk",
+                "wca_missing": "WCA Kayıp Panel",
                 "uncaught_anomaly": "Yakalanamayan Anomali (CALIBRATION REQUIRED Etiketi)"
             }.get(r.injected_fault, r.injected_fault)
             det = f"{badge_text}<br><span class='dim'>Enjekte: {fault_desc}</span>"
@@ -627,6 +676,9 @@ def _save_html():
                 "spurious_text": "Spurious/İstenmeyen Yazı Enjeksiyonu (Ekranda alakasız yazı)",
                 "false_valid": "Sahte Valid Göstergesi (Geçersiz parametrede değer gösterilmesi)",
                 "bad_anti": "Hatalı Anti-Ice Değeri",
+                "wca_wrong_text": "WCA Geçersiz Metin Enjeksiyonu (WCA panelinde izin verilmeyen yabancı kelime)",
+                "wca_wrong_color": "WCA Hatalı Renk Enjeksiyonu (WCA alarmının yanlış renkte boyanması)",
+                "wca_missing": "WCA Kayıp Panel Enjeksiyonu (WCA panelinin gizlenmesi/görünmemesi)",
                 "uncaught_anomaly": "Yakalanamayan Anomali (Ekranda beliren ve dedektör tarafından yakalanamayan 'CALIBRATION REQUIRED' gizli etiketi/anomalisi)"
             }.get(r.injected_fault, r.injected_fault)
             fail_html = (

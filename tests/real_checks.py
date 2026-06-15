@@ -32,7 +32,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
-from tests.param_config import PARAM_CONFIGS, ErrorCategory
+from tests.param_config import PARAM_CONFIGS, ErrorCategory, WCA_ALLOWED_TEXTS
 from tests.visual_analyzer import (
     get_widget_bbox, detect_dominant_color, crop_bbox,
 )
@@ -421,6 +421,93 @@ def run_wca_checks(pencere, scenario) -> ParamReport:
             note="" if clean else "Nominal durumda gereksiz WCA uyarısı çıkmış.",
             bbox=rep.bbox,
         ))
+
+    # ── WCA EKRAN KONTROLLERİ (Visual & Text Integrity) ──
+    wca_frame = getattr(pencere, "wca_frame", None)
+    wca_visible = wca_frame is not None and wca_frame.isVisible() and wca_frame.height() > 10 and wca_frame.width() > 10
+    rep.checks.append(Check(
+        name="wca_visible", passed=wca_visible,
+        expected="WCA frame visible", actual="visible" if wca_visible else "hidden/missing",
+        category=ErrorCategory.MISSING_SECTION,
+        goes_to_wca=True,
+        note="" if wca_visible else "WCA paneli/bölümü görünür değil veya gizlenmiş.",
+        bbox=rep.bbox,
+    ))
+
+    from PyQt5.QtWidgets import QLabel
+    wca_labels = []
+    if hasattr(pencere, "wca_lay") and pencere.wca_lay is not None:
+        for i in range(pencere.wca_lay.count()):
+            item = pencere.wca_lay.itemAt(i)
+            if item and item.widget():
+                if isinstance(item.widget(), QLabel):
+                    wca_labels.append(item.widget())
+
+    for lbl in wca_labels:
+        txt = lbl.text().upper()
+        bg_style = lbl.styleSheet().upper()
+        if "WARNING" in txt:
+            expected_bg = "#FF3333"
+            severity_str = "WARNING"
+        elif "CAUTION" in txt:
+            expected_bg = "#FFB000"
+            severity_str = "CAUTION"
+        else:
+            expected_bg = "#00FF66"
+            severity_str = "ADVISORY"
+            
+        bg_ok = expected_bg in bg_style
+        actual_bg = "unknown"
+        if "#FF3333" in bg_style: actual_bg = "red (WARNING)"
+        elif "#FFB000" in bg_style: actual_bg = "yellow (CAUTION)"
+        elif "#00FF66" in bg_style: actual_bg = "green (ADVISORY)"
+        
+        rep.checks.append(Check(
+            name="wca_color", passed=bg_ok,
+            expected=expected_bg, actual=actual_bg,
+            category=ErrorCategory.WCA_WRONG_COLOR,
+            goes_to_wca=True,
+            note="" if bg_ok else f"WCA '{txt.split(' ')[0]}' mesajı {expected_bg} yerine {actual_bg} renginde boyanmış.",
+            bbox=rep.bbox,
+        ))
+
+    # Duplicate check
+    seen_wca_texts = set()
+    duplicates = []
+    for lbl in wca_labels:
+        txt_val = lbl.text().strip().upper()
+        if txt_val in seen_wca_texts:
+            duplicates.append(txt_val)
+        seen_wca_texts.add(txt_val)
+    wca_no_duplicates = len(duplicates) == 0
+    rep.checks.append(Check(
+        name="wca_no_duplicates", passed=wca_no_duplicates,
+        expected="her WCA mesajı benzersiz olmalı",
+        actual=(f"tekrar edenler: {', '.join(duplicates)}" if duplicates else "tümü benzersiz"),
+        category=ErrorCategory.WCA_DUPLICATE,
+        goes_to_wca=True,
+        note="" if wca_no_duplicates else f"WCA panelinde tekrar eden mesaj(lar) bulundu: {', '.join(duplicates)}.",
+        bbox=rep.bbox,
+    ))
+
+    from tests.visual_analyzer import check_wca_for_unexpected_text
+    
+    class PseudoEntry:
+        def __init__(self, text):
+            self.text = text
+            
+    pseudo_entries = [PseudoEntry(lbl.text()) for lbl in wca_labels]
+    unexpected_texts = check_wca_for_unexpected_text(pseudo_entries, WCA_ALLOWED_TEXTS)
+    no_unexpected = (len(unexpected_texts) == 0)
+    rep.checks.append(Check(
+        name="wca_no_unexpected_text", passed=no_unexpected,
+        expected="sadece izin verilen WCA kelimeleri",
+        actual=(", ".join(unexpected_texts) if unexpected_texts else "tümü izinli"),
+        category=ErrorCategory.WCA_WRONG_TEXT,
+        goes_to_wca=True,
+        note="" if no_unexpected else f"WCA panelinde izin verilmeyen yabancı kelime/kelimeler bulundu: {', '.join(unexpected_texts)}.",
+        bbox=rep.bbox,
+    ))
 
     return rep
 
