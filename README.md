@@ -185,8 +185,6 @@ training_metrics/
 
 1. **Temporal Detection** — Ardışık frameler arasındaki değişim hızına bakarak "hızlı bozulma" alarmı
 2. **Multi-label** — Tek ekranda birden fazla sistem hatası sınıflandırması
-3. **Transfer Learning** — TUSAŞ-spesifik pre-trained backbone (sentetik veri ile)
-4. **Active Learning** — Modelin en emin olmadığı örnekleri test öncelik listesine koy
-5. **ONNX Export** — `best.pt → best.onnx` → gömülü sistemde çalışma
-6. **Regression Branch** — Sınıflandırma değil, anlık sensör değeri tahmini
-7. **Trend Analysis** — 10 ardışık tahmin üzerinde sliding window, erken uyarı sistemi
+3. **Active Learning** — Modelin en emin olmadığı örnekleri test öncelik listesine koy
+4. **ONNX Export** — `best.pt → best.onnx` → gömülü sistemde çalışma
+5. **Trend Analysis** — 10 ardışık tahmin üzerinde sliding window, erken uyarı sistemi
