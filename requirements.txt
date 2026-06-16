@@ -13,7 +13,7 @@ pyaudio                 # Windows'ta PortAudio gerektirir. Python 3.14+ sanal or
 pytest
 pytest-qt
 
-# ── AI Vision & OCR ───────────────────────────────────────────────────────────
+# ── Görüntü İşleme & OCR ───────────────────────────────────────────────────────
 numpy
 opencv-python-headless
 Pillow

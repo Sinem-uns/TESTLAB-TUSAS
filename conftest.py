@@ -3,6 +3,8 @@ TUSAS TestLab — Pytest Global Configuration
 """
 
 import os
+os.environ["QT_NO_WARNING_OUTPUT"] = "1"
+os.environ["QT_LOGGING_RULES"] = "*=false"
 import platform
 import subprocess
 import webbrowser
@@ -58,8 +60,6 @@ def pytest_sessionstart(session):
 def pytest_sessionfinish(session, exitstatus):
     """
     Tüm testler bittikten sonra raporu otomatik aç.
-    Bu hook sadece test_ai_vision_v4.py içinde kendi hook'u yoksa devreye girer
-    (v4 zaten kendi hook'unu tanımlıyor; bu v3 ve diğerleri için fallback).
     """
     if os.environ.get("TUSAS_NO_OPEN_REPORT") == "1":
         return
@@ -67,12 +67,6 @@ def pytest_sessionfinish(session, exitstatus):
     html_path = os.path.abspath(os.path.join(report_dir, "report.html"))
 
     if not os.path.exists(html_path):
-        return
-
-    # v4 zaten kendi açma logic'ini çalıştırıyor — duplicate açma yapma
-    # Sadece doğrudan v3/sistem testi çalıştırıldıysa buradan aç
-    collected = getattr(session, "_collect_items_count", None)
-    if collected is not None:
         return
 
     _open_html(html_path)

@@ -335,13 +335,19 @@ def run_param_checks(pencere, scenario, pil_img, key: str, injected_val: float) 
                     ))
                 else:
                     ok = abs(actual_fill - exp_fill) <= 0.12
+                    decimals = getattr(spec, "decimals", 1)
+                    unit_suffix = f" {spec.unit}" if spec.unit else ""
+                    expected_str = f"{clamped:.{decimals}f}{unit_suffix}"
+                    actual_val = spec.vmin + actual_fill * (spec.vmax - spec.vmin)
+                    actual_str = f"{actual_val:.{decimals}f}{unit_suffix}"
+                    
                     rep.checks.append(Check(
                         name="bar_fill_render", passed=ok,
-                        expected=f"{exp_fill:.0%}", actual=f"{actual_fill:.0%}",
+                        expected=expected_str, actual=actual_str,
                         category=ErrorCategory.VISUAL_SCALE,
                         note="" if ok else (
-                            f"Bar doluluğu değere göre %{exp_fill*100:.0f} olmalı ama "
-                            f"ekranda %{actual_fill*100:.0f} dolu görünüyor."),
+                            f"Bar doluluğu değere göre {expected_str} olmalı ama "
+                            f"ekranda {actual_str} doluluğunda görünüyor (görsel doluluk: %{actual_fill*100:.0f})."),
                         bbox=rep.bbox,
                     ))
 

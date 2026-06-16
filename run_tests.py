@@ -127,26 +127,15 @@ def main():
                         help="Sadece belirli kategoriyi test et (örn. ENGINE, FUEL, COLOR)")
     parser.add_argument("--scenario", metavar="ID",
                         help="Tek senaryo çalıştır (örn. ENG_001, COLOR_002)")
-    parser.add_argument("--v4", action="store_true",
-                        help="Eski v4 test dosyasını çalıştır (sahte enjeksiyonlu)")
-    parser.add_argument("--v3", action="store_true",
-                        help="v3 test dosyasını çalıştır (eski)")
     parser.add_argument("--inject-faults", action="store_true",
-                        help="Dedektör öz-testi: bilinen hatalar enjekte et, test yakalamalı")
+                         help="Dedektör öz-testi: bilinen hatalar enjekte et, test yakalamalı")
     parser.add_argument("--no-train", action="store_true",
-                        help="Testten sonra model eğitimini atla")
+                         help="Testten sonra model eğitimini atla")
     parser.add_argument("--verbose", "-v", action="store_true", help="Detaylı çıktı")
     args = parser.parse_args()
 
     # ── Test dosyası seçimi ────────────────────────────────────────────────────
-    if args.v3:
-        test_file = os.path.join(ROOT, "tests", "test_ai_vision_v3.py")
-        print("  [v3] Eski test dosyası: test_ai_vision_v3.py")
-    elif args.v4:
-        test_file = os.path.join(ROOT, "tests", "test_ai_vision_v4.py")
-        print("  [v4] Eski test dosyası: test_ai_vision_v4.py")
-    else:
-        test_file = os.path.join(ROOT, "tests", "test_real_vision.py")
+    test_file = os.path.join(ROOT, "tests", "test_real_vision.py")
 
     # ── pytest komut inşası ───────────────────────────────────────────────────
     cmd = [sys.executable, "-m", "pytest", test_file, "-s", "--tb=short",
@@ -164,6 +153,8 @@ def main():
     env.setdefault("QT_QPA_PLATFORM", "offscreen")
     env.setdefault("PYTHONIOENCODING", "utf-8")
     env["TUSAS_NO_OPEN_REPORT"] = "1"
+    env["QT_NO_WARNING_OUTPUT"] = "1"
+    env["QT_LOGGING_RULES"] = "*=false"
 
     print("\n" + "=" * 60)
     print("  TUSAS TestLab — Test Başlatılıyor")
@@ -182,7 +173,7 @@ def main():
     print(f"\n  Süre: {elapsed}s  |  Çıkış kodu: {result.returncode}")
 
     # ── Gerçek ML eğitimi (normal modda, varsayılan açık) ──────────────────────
-    if not args.inject_faults and not args.no_train and not args.v3 and not args.v4:
+    if not args.inject_faults and not args.no_train:
         run_real_training()
         
         # Eğitim bittikten sonra Model Eğitim Raporunu da aç

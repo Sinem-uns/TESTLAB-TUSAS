@@ -43,11 +43,48 @@ from ekran import FlightDisplay
 from tests.harness import deterministic_apply, real_wca_entries
 from tests import real_checks
 from tests.visual_analyzer import get_widget_bbox
-# Senaryo seti ve snapshot/enjeksiyon yardımcıları v4'ten tek kaynak olarak alınır
-from tests.test_ai_vision_v4 import (
-    ALL_SCENARIOS, take_snapshot,
-    SCREENSHOT_DIR, REPORT_DIR,
-)
+from tests.fault_scenarios import SCENARIOS as ALL_SCENARIOS
+
+REPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "test_reports"))
+SCREENSHOT_DIR = os.path.join(REPORT_DIR, "screenshots")
+ANNOTATED_DIR = os.path.join(REPORT_DIR, "annotated")
+CROP_DIR = os.path.join(REPORT_DIR, "crops")
+for d in [REPORT_DIR, SCREENSHOT_DIR, ANNOTATED_DIR, CROP_DIR]:
+    os.makedirs(d, exist_ok=True)
+
+def take_snapshot(widget, scenario_id: str, suffix: str = ""):
+    import time
+    from PyQt5.QtCore import QByteArray, QBuffer, QIODevice
+    from PyQt5.QtGui import QPixmap
+    from PyQt5.QtWidgets import QApplication
+    from tests.visual_analyzer import pil_from_screenshot
+    
+    widget.repaint()
+    QApplication.processEvents()
+    time.sleep(0.1)
+
+    pixmap = widget.grab()
+    filename = f"{scenario_id}{suffix}.png"
+    path = os.path.join(SCREENSHOT_DIR, filename)
+    pixmap.save(path, "PNG")
+
+    # base64
+    buf = QByteArray()
+    qbuf = QBuffer(buf)
+    qbuf.open(QIODevice.WriteOnly)
+    pixmap.save(qbuf, "PNG")
+    b64 = base64.b64encode(buf.data()).decode("utf-8")
+
+    # PIL image
+    pil_img = pil_from_screenshot(path)
+    
+    # [RETINA DISPLAY FIX]
+    ratio = widget.devicePixelRatioF()
+    if pil_img and ratio != 1.0:
+        from PIL import Image
+        pil_img = pil_img.resize((widget.width(), widget.height()), Image.LANCZOS)
+
+    return pixmap, path, b64, pil_img
 
 try:
     from ml_trainer_v3 import collect_training_data
@@ -101,9 +138,6 @@ def get_session_fault_mapping() -> dict:
     import random
     rng = random.Random()  # uses time-based/random seed
 
-    # 1. Missed anomaly constraint: VIS_001 is always uncaught_anomaly
-    SESSION_FAULT_MAPPING["VIS_001"] = "uncaught_anomaly"
-
     # 2. Anti-ice scenarios: ANTI_001, ANTI_002, ANTI_003 get bad_anti
     anti_ids = ["ANTI_001", "ANTI_002", "ANTI_003"]
     for aid in anti_ids:
@@ -132,10 +166,10 @@ def get_session_fault_mapping() -> dict:
         fault = bar_faults[i % len(bar_faults)]
         SESSION_FAULT_MAPPING[sid] = fault
 
-    # 4. Remaining scenarios (non-bar, non-anti-ice, non-VIS_001, non-WCA)
+    # 4. Remaining scenarios (non-bar, non-anti-ice, non-WCA)
     non_bar_scenarios = [
         s.id for s in ALL_SCENARIOS 
-        if s.id not in bar_scenarios and s.id != "VIS_001" and s.id not in anti_ids and s.id not in wca_ids
+        if s.id not in bar_scenarios and s.id not in anti_ids and s.id not in wca_ids
     ]
     # Shuffle remaining scenarios
     shuffled_rem = list(non_bar_scenarios)
@@ -318,16 +352,6 @@ def _inject_known_render_fault(pencere, scenario, idx: int) -> str:
         lbl.setFont(QFont("Consolas", 14, QFont.Bold))
         lbl.setGeometry(20 + (idx % 4) * 20, 15 + (idx % 3) * 5, 400, 30)
         lbl.show()
-    elif ft == "uncaught_anomaly":
-        from PyQt5.QtWidgets import QLabel
-        from PyQt5.QtGui import QFont
-        lbl = QLabel(pencere)
-        lbl.setObjectName("invisible_defect_label")
-        lbl.setText("CALIBRATION REQUIRED")
-        lbl.setStyleSheet("color: #FF00FF; background-color: transparent;")
-        lbl.setFont(QFont("Consolas", 14, QFont.Bold))
-        lbl.setGeometry(1280, 20, 280, 30)
-        lbl.show()
     elif ft == "false_valid":
         if hasattr(w, "set_invalid"):
             w.set_invalid(False)
@@ -495,21 +519,16 @@ def test_real_vision(pencere, scenario, request):
 
     if inject_mode and injected_fault:
         # Dedektör, enjekte edilen hatayı YAKALAMALI (en az bir hard-check FAIL)
-        # Ancak yakalanamayan anomali (uncaught_anomaly) durumunda bilerek kaçırılması beklenir.
         caught = len(failed) > 0
         res.detector_caught = caught
-        if injected_fault == "uncaught_anomaly":
-            res.passed = True  # Rapor ve testin geçmesi için True set ediyoruz (kaçırma beklentimiz)
-        else:
-            res.passed = caught
+        res.passed = caught
             
         _results.append(res)
         
-        if injected_fault != "uncaught_anomaly":
-            assert caught, (
-                f"[DEDEKTÖR ZAYIF] {scenario.id}: enjekte edilen '{injected_fault}' hatasını "
-                f"hiçbir hard-check yakalamadı."
-            )
+        assert caught, (
+            f"[DEDEKTÖR ZAYIF] {scenario.id}: enjekte edilen '{injected_fault}' hatasını "
+            f"hiçbir hard-check yakalamadı."
+        )
     else:
         res.detector_caught = None
         res.passed = (len(failed) == 0)
@@ -607,8 +626,7 @@ def _save_html():
                 "bad_anti": "Geçersiz Anti-Ice",
                 "wca_wrong_text": "WCA Geçersiz Metin",
                 "wca_wrong_color": "WCA Hatalı Renk",
-                "wca_missing": "WCA Kayıp Panel",
-                "uncaught_anomaly": "Yakalanamayan Anomali (CALIBRATION REQUIRED Etiketi)"
+                "wca_missing": "WCA Kayıp Panel"
             }.get(r.injected_fault, r.injected_fault)
             det = f"{badge_text}<br><span class='dim'>Enjekte: {fault_desc}</span>"
             
@@ -678,8 +696,7 @@ def _save_html():
                 "bad_anti": "Hatalı Anti-Ice Değeri",
                 "wca_wrong_text": "WCA Geçersiz Metin Enjeksiyonu (WCA panelinde izin verilmeyen yabancı kelime)",
                 "wca_wrong_color": "WCA Hatalı Renk Enjeksiyonu (WCA alarmının yanlış renkte boyanması)",
-                "wca_missing": "WCA Kayıp Panel Enjeksiyonu (WCA panelinin gizlenmesi/görünmemesi)",
-                "uncaught_anomaly": "Yakalanamayan Anomali (Ekranda beliren ve dedektör tarafından yakalanamayan 'CALIBRATION REQUIRED' gizli etiketi/anomalisi)"
+                "wca_missing": "WCA Kayıp Panel Enjeksiyonu (WCA panelinin gizlenmesi/görünmemesi)"
             }.get(r.injected_fault, r.injected_fault)
             fail_html = (
                 f"<div style='background: #3a1c1c; border: 1px solid #f85149; padding: 10px; border-radius: 8px; color: #ff7b72; font-weight: bold; font-size: 12px;'>"

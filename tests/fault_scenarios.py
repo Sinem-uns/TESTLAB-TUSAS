@@ -23,7 +23,7 @@ class FaultScenario:
     expected_wca_keys: List[str] = field(default_factory=list)  # WCA'da görünmesi beklenen key prefixleri
     expected_wca_texts: List[str] = field(default_factory=list) # WCA metninde geçmesi beklenen kelimeler
     expected_mc_state: str = "OFF"         # Master Caution beklenen durum: "OFF" | "CAUTION" | "WARNING"
-    ai_vision_prompt: str = ""             # Claude Vision'a gönderilecek soru
+    verification_prompt: str = ""             # Senaryo doğrulama yönergeleri
     time_advance_secs: int = 6             # FaultGate için ileri sarılacak süre (sn)
     tick_count: int = 2                    # Kaç kez _tick_sim çağrılacak
 
@@ -42,7 +42,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"E1_TRQ": 108.0, "E2_TRQ": 78.0},
         expected_wca_texts=["TRQ1", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Bu uçuş ekranında: "
             "1) WCA (Warning/Caution/Advisory) paneli kırmızı mı? "
             "2) Engine 1 Torque barı kırmızı renkte mi? "
@@ -60,7 +60,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"E2_TIT": 935.0, "E1_TIT": 650.0},
         expected_wca_texts=["TIT2", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Bu uçuş ekranında Engine 2 TIT (Turbine Inlet Temperature) parametresi "
             "kırmızı uyarı rengiyle gösteriliyor mu? "
             "WCA listesinde kırmızı renkli bir uyarı var mı? EVET/HAYIR."
@@ -76,7 +76,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"E1_OILP": 18.0},
         expected_wca_texts=["OIL P1", "LOW"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Ekranda Engine 1 Oil Pressure (OIL P1) değeri kırmızı/uyarı durumunda mı? "
             "EVET veya HAYIR."
         ),
@@ -91,7 +91,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"E1_NP": 91.0, "E2_NP": 91.0},
         expected_wca_texts=["NP"],
         expected_mc_state="CAUTION",
-        ai_vision_prompt=(
+        verification_prompt=(
             "WCA paneli sarı (CAUTION) renk tonunda mı görünüyor? "
             "Master Caution 'ON' yazıyor mu? EVET/HAYIR."
         ),
@@ -107,7 +107,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"FUEL_L": 25.0, "FUEL_R": 28.0, "FUEL_TOT": 53.0},
         expected_wca_texts=["L TANK", "LOW"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Yakıt panelinde (FUEL bölümü) L TANK ve R TANK değerleri kırmızı/uyarı "
             "rengiyle gösteriliyor mu? WCA listesinde FUEL ile ilgili uyarı var mı? "
             "EVET/HAYIR."
@@ -123,7 +123,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"FUEL_L": 400.0, "FUEL_R": 150.0, "FUEL_BAL": 250.0},
         expected_wca_texts=["IMBAL", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Yakıt dengesizlik (IMBAL) göstergesi kırmızı renkte mi? EVET/HAYIR."
         ),
     ),
@@ -137,7 +137,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"FUEL_P": 14.0},
         expected_wca_texts=["FUEL P", "LOW"],
         expected_mc_state="CAUTION",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Yakıt basıncı (FUEL P) göstergesi sarı/ihtiyat rengiyle mi gösteriliyor? "
             "EVET/HAYIR."
         ),
@@ -153,7 +153,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"ELEC_GEN1V": 19.5},
         expected_wca_texts=["GEN1 V", "LOW"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Elektrik panelinde GEN1 V değeri kırmızı uyarı rengiyle gösteriliyor mu? "
             "EVET/HAYIR."
         ),
@@ -168,7 +168,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"ELEC_ACF": 345.0},
         expected_wca_texts=["AC FREQ", "LOW"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "AC FREQ parametresi kritik değerde mi gösteriliyor? EVET/HAYIR."
         ),
     ),
@@ -183,7 +183,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"ENV_CABALT": 10500.0, "ENV_DIFF": 1.0},
         expected_wca_texts=["CAB ALT", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Çevre panelinde CAB ALT değeri kırmızı uyarı rengiyle gösteriliyor mu? "
             "EVET/HAYIR."
         ),
@@ -198,7 +198,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"ENV_SMK": 65.0},
         expected_wca_texts=["SMOKE", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "SMOKE (Duman) göstergesi kırmızı/uyarı rengiyle gösteriliyor mu? "
             "WCA'da smoke ile ilgili uyarı var mı? EVET/HAYIR."
         ),
@@ -213,7 +213,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"ENV_BLEED": 105.0},
         expected_wca_texts=["BLEED", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "BLEED göstergesi kırmızı/uyarı rengiyle gösteriliyor mu? EVET/HAYIR."
         ),
     ),
@@ -228,7 +228,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"HYD_A_P": 1500.0},
         expected_wca_texts=["SYS A P", "LOW"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Hidrolik panelinde SYS A P değeri kırmızı/uyarı rengiyle gösteriliyor mu? "
             "EVET/HAYIR."
         ),
@@ -244,7 +244,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"VIB_MR": 8.2},
         expected_wca_texts=["MR VIB", "HIGH"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "DRIVE/ROTOR panelinde MR VIB değeri kırmızı uyarı rengiyle gösteriliyor mu? "
             "EVET/HAYIR."
         ),
@@ -259,7 +259,7 @@ SCENARIOS: List[FaultScenario] = [
         inject={"RTR_NR": 88.0},
         expected_wca_texts=["NR", "LOW"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "NR (Rotor RPM) göstergesi kırmızı/uyarı rengiyle mi gösteriliyor? "
             "EVET/HAYIR."
         ),
@@ -281,7 +281,7 @@ SCENARIOS: List[FaultScenario] = [
         },
         expected_wca_texts=["TRQ1", "OIL P1", "L TANK"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Bu kritik senaryoda: "
             "1) WCA paneli tamamen kırmızı mı? "
             "2) Birden fazla sistem için uyarı gösteriliyor mu? "
@@ -306,7 +306,7 @@ SCENARIOS: List[FaultScenario] = [
         },
         expected_wca_texts=["GEN1 V", "GEN2 V"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Elektrik panelinde birden fazla voltaj değeri kırmızı/kritik gösteriliyor mu? "
             "WCA listesinde elektrik arızası uyarısı var mı? EVET/HAYIR."
         ),
@@ -325,7 +325,7 @@ SCENARIOS: List[FaultScenario] = [
         invalid_params=["E1_NG", "E1_TIT", "E2_NG"],
         expected_wca_texts=["INVALID"],
         expected_mc_state="WARNING",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Engine panelinde çarpı işareti (X) veya INVALID göstergesi olan "
             "parametreler var mı? WCA'da INVALID uyarısı görünüyor mu? EVET/HAYIR."
         ),
@@ -346,7 +346,7 @@ SCENARIOS: List[FaultScenario] = [
             "HYD_A_P": 3000.0, "HYD_B_P": 2950.0,
         },
         expected_mc_state="OFF",
-        ai_vision_prompt=(
+        verification_prompt=(
             "Bu ekranda: "
             "1) WCA paneli yeşil renkte mi (SYSTEM STATUS - MONITORING ACTIVE)? "
             "2) Master Caution 'OFF' yazıyor mu? "
@@ -355,6 +355,290 @@ SCENARIOS: List[FaultScenario] = [
         ),
         time_advance_secs=0,
         tick_count=1,
+    ),
+
+    # ── EXTRA SCENARIOS ──
+    # ── RENK THRESHOLD TESTLERİ ──────────────────────────────────────────────
+    # TRQ1 = 60 → 0-100 arası yeşil zone → bar yeşil olmalı
+    FaultScenario(
+        id="COLOR_001",
+        name="TRQ1 Nominal Zone — Green Bar Check",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "TRQ1=60 → yeşil zone (0-100). "
+            "Bar yeşil renkte olmalı. WCA'ya düşmemeli. "
+            "Doluluk oranı ~%55 olmalı (60/110)."
+        ),
+        inject={"E1_TRQ": 60.0},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "Engine 1 TRQ1 parametresi ekranda yeşil renkte mi gösteriliyor? "
+            "Değer yaklaşık 60 gösteriyor mu? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    # TRQ1 = 108 → 105-110 arası kırmızı WARNING zone
+    FaultScenario(
+        id="COLOR_002",
+        name="TRQ1 Warning Zone — Red Bar + WCA Check",
+        category="ENGINE",
+        severity="WARNING",
+        description=(
+            "TRQ1=108 → kırmızı warning zone (>105). "
+            "Bar kırmızı + WCA 'TRQ1 HIGH WARNING' çıkmalı."
+        ),
+        inject={"E1_TRQ": 108.0},
+        expected_wca_texts=["TRQ1", "HIGH"],
+        expected_mc_state="WARNING",
+        verification_prompt=(
+            "TRQ1 bar kırmızı renkte mi? "
+            "WCA panelinde TRQ1 ile ilgili uyarı var mı? EVET/HAYIR."
+        ),
+    ),
+
+    # TRQ1 = 102 → 100-105 arası turuncu CAUTION zone
+    FaultScenario(
+        id="COLOR_003",
+        name="TRQ1 Caution Zone — Orange Bar Check",
+        category="ENGINE",
+        severity="CAUTION",
+        description="TRQ1=102 → turuncu caution zone (100-105). Bar turuncu olmalı.",
+        inject={"E1_TRQ": 102.5},
+        expected_wca_texts=["TRQ1"],
+        expected_mc_state="CAUTION",
+        verification_prompt=(
+            "TRQ1 bar turuncu/sarı renkte mi? EVET/HAYIR."
+        ),
+    ),
+
+    # ── ANTI-ICE STATE TESTLERİ ───────────────────────────────────────────────
+    FaultScenario(
+        id="ANTI_001",
+        name="Anti-Ice Default State — AUTO",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "Anti-ice varsayılan durumu AUTO olmalı. "
+            "Değer listede (OFF/AUTO/ON) olmalı. "
+            "WCA'ya düşmemeli."
+        ),
+        inject={},  # inject yok, mevcut state test edilir
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "STATUS panelinde ANTI-ICE değeri 'AUTO', 'ON' veya 'OFF' yazıyor mu? "
+            "Değer okunabilir durumda mı? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    FaultScenario(
+        id="ANTI_002",
+        name="Anti-Ice State Change — OFF",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "Anti-ice değeri OFF olarak set edilir ve "
+            "ekranda OFF gösterilmesi beklenir."
+        ),
+        inject={},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "STATUS panelinde ANTI-ICE değeri 'OFF' yazıyor mu? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    FaultScenario(
+        id="ANTI_003",
+        name="Anti-Ice State Change — ON",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "Anti-ice değeri ON olarak set edilir ve "
+            "ekranda ON gösterilmesi beklenir."
+        ),
+        inject={},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "STATUS panelinde ANTI-ICE değeri 'ON' yazıyor mu? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    # ── BAR SCALE / DOLULUK TESTİ ────────────────────────────────────────────
+    FaultScenario(
+        id="SCALE_001",
+        name="FUEL_L Bar Fill Ratio — 50% Fill Check",
+        category="FUEL",
+        severity="ADVISORY",
+        description=(
+            "FUEL_L=300 LBS (max 600). "
+            "Beklenen doluluk: ~%50. "
+            "Numeric değer + bar doluluk oranı birlikte test edilir."
+        ),
+        inject={"FUEL_L": 300.0},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "FUEL bölümünde L TANK bar yarıya kadar dolu mu (~%50)? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    FaultScenario(
+        id="SCALE_002",
+        name="HYD_A_P Bar Fill Ratio — High Value Check",
+        category="HYDRAULIC",
+        severity="ADVISORY",
+        description=(
+            "HYD_A_P=3000 PSI (max 3500, min 0). "
+            "Beklenen doluluk: ~%86. "
+            "Bar yeşil + doluluk doğru olmalı."
+        ),
+        inject={"HYD_A_P": 3000.0},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "Hidrolik SYS A P bar doluluk oranı yüksek mi (yaklaşık %85-90)? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    # ── UNIT DOĞRULAMAn ───────────────────────────────────────────────────────
+    FaultScenario(
+        id="UNIT_001",
+        name="Temperature Unit Validation — °C Check",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "TIT1 sıcaklık birimi '°C' olmalı. "
+            "'°F' veya başka bir birim yanlış."
+        ),
+        inject={"E1_TIT": 700.0},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "ENGINE panelinde TIT1 birimi '°C' olarak gösteriliyor mu? "
+            "'°F' görünüyor mu? EVET/HAYIR (°C için EVET)."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    FaultScenario(
+        id="UNIT_002",
+        name="Fuel Unit Validation — LBS Check",
+        category="FUEL",
+        severity="ADVISORY",
+        description="FUEL_L biriminin 'LBS' olduğunu doğrula.",
+        inject={"FUEL_L": 400.0},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "FUEL bölümünde L TANK birimi 'LBS' olarak gösteriliyor mu? EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    # ── WCA EK DURUMLAR ───────────────────────────────────────────────────────
+    FaultScenario(
+        id="WCA_001",
+        name="WCA Unexpected Text — Artifact Check",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "Nominal durumda WCA panelinde sadece izin verilen metinler olmalı. "
+            "Tanımsız metin/artefact olmamalı."
+        ),
+        inject={
+            "E1_TRQ": 78.0, "E2_TRQ": 77.0,
+            "FUEL_L": 380.0, "FUEL_R": 370.0,
+        },
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "WCA panelinde beklenmedik, anlamsız veya alakasız bir metin var mı? "
+            "Örn. 'Sinem', 'Test123' gibi sistem dışı yazılar. EVET/HAYIR (yok ise HAYIR)."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    FaultScenario(
+        id="WCA_002",
+        name="WCA Priority — Most Critical First",
+        category="ENGINE",
+        severity="WARNING",
+        description=(
+            "Birden fazla alarm varken WCA en kritik olanı (WARNING) önce göstermeli."
+        ),
+        inject={"E1_TRQ": 108.0, "E1_NP": 90.0},
+        expected_wca_texts=["TRQ1"],
+        expected_mc_state="WARNING",
+        verification_prompt=(
+            "WCA panelinde kırmızı renkli (WARNING seviyeli) bir uyarı en üstte mi? "
+            "EVET/HAYIR."
+        ),
+    ),
+
+    # ── MISSING SECTION TESTİ ─────────────────────────────────────────────────
+    FaultScenario(
+        id="PANEL_001",
+        name="Engine Panel Visibility Check",
+        category="ENGINE",
+        severity="ADVISORY",
+        description=(
+            "ENGINE / PROPULSION paneli görünür ve dolu olmalı. "
+            "Boş alan veya render edilmemiş bölge olmamalı."
+        ),
+        inject={"E1_TRQ": 78.0, "E2_TRQ": 77.0},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "Ekranda ENGINE veya PROPULSION paneli görünür ve değer içeriyor mu? "
+            "Boş bir alan var mı? EVET/HAYIR (görünür ise EVET)."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    FaultScenario(
+        id="PANEL_002",
+        name="WCA Panel Visibility Check",
+        category="ENGINE",
+        severity="ADVISORY",
+        description="WCA paneli görünür ve aktif olmalı. Boş kalmamalı.",
+        inject={},
+        expected_mc_state="OFF",
+        verification_prompt=(
+            "WCA paneli ekranda görünür mü ve içinde metin var mı? "
+            "EVET/HAYIR."
+        ),
+        time_advance_secs=0,
+        tick_count=1,
+    ),
+
+    # ── MULTI-PARAM CASCADE GÖRSEL TEST ───────────────────────────────────────
+    FaultScenario(
+        id="VIS_001",
+        name="Multiple Param Visual Consistency",
+        category="ENGINE",
+        severity="WARNING",
+        description=(
+            "E1_OILP=18 PSI (kırmızı), E1_TRQ=60 (yeşil). "
+            "Her param kendi renk zone'unda gösterilmeli. "
+            "Sadece OIL P1 WCA'ya düşmeli."
+        ),
+        inject={"E1_OILP": 18.0, "E1_TRQ": 60.0},
+        expected_wca_texts=["OIL P1", "LOW"],
+        expected_mc_state="WARNING",
+        verification_prompt=(
+            "OIL P1 kırmızı gösterilirken TRQ1 yeşil mi gösteriliyor? "
+            "Yani iki farklı renk aynı anda görünüyor mu? EVET/HAYIR."
+        ),
     ),
 ]
 

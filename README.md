@@ -47,17 +47,16 @@ python ekran.py
 
 ## Test Sistemi — Dürüst Mimari
 
-Eski testler senaryoyu uyguladıktan sonra widget'ları **bilerek bozup** o hatayı
-"yakalıyordu" — yani UI doğruluğunu hiç ölçmüyordu. v3'te test, birbirinden
+ Eski testler senaryoyu uyguladıktan sonra widget'ları **bilerek bozup** o hatayı
+"yakalıyordu" — yani UI doğruluğunu hiç ölçmüyordu. Test sistemi, birbirinden
 **bağımsız iki doğruluk kaynağı** kullanır; kendini doğrulayamaz:
 
 ```
 Ekran görüntüsü (gerçek render)
   ├── Piksel sadakati    — bar rengi/doluluğu ↔ widget'ın amaçladığı değer
   │                        + OCR ile okunan sayı (tesseract, kanıt)
-  ├── Bağımsız mantık    — widget.get_state(value) ↔ param_config eşikleri
-  │                        + WCA mesajları & Master Caution ↔ senaryo beklentisi
-  └── Claude Vision       — doğal dil görsel doğrulama (opsiyonel, çevrimiçi)
+  └── Bağımsız mantık    — widget.get_state(value) ↔ param_config eşikleri
+                           + WCA mesajları & Master Caution ↔ senaryo beklentisi
 ```
 
 ### Tek komutla tam test ve raporlama
@@ -78,11 +77,10 @@ python run_tests.py
 | Komut | Açıklama |
 |---|---|
 | `python run_tests.py` | Dürüst test (piksel + mantık + WCA) + gerçek model eğitimi + interaktif HTML raporunu açar |
-| `python run_tests.py --inject-faults --no-train` | **Dedektör Öz-Testi:** 34 senaryoya dinamik olarak çeşitlendirilmiş hatalar enjekte eder ve raporu açar. (33 hata yakalanır, `VIS_001` senaryosundaki `'CALIBRATION REQUIRED'` gizli anomalisi yakalanmayarak raporda kaçırıldığı belirtilir) |
+| `python run_tests.py --inject-faults --no-train` | **Dedektör Öz-Testi:** 34 senaryoya dinamik olarak çeşitlendirilmiş hatalar enjekte eder, dedektörlerin bunları yakalayıp yakalayamadığını dürüstçe test eder ve raporu açar. |
 | `python run_tests.py --no-train` | Sadece dürüst testleri çalıştırır ve raporu açar (model eğitimi adımı atlanır) |
 | `python run_tests.py --scenario ENG_002` | Sadece belirli bir senaryoyu (örn: ENG_002) çalıştırır ve raporunu açar |
 | `python run_tests.py --category ENGINE` | Sadece belirli bir kategoriye (örn: ENGINE) ait senaryoları çalıştırır |
-| `python run_tests.py --v3` / `--v4` | Karşılaştırma amacıyla eski (sahte enjeksiyonlu) test dosyalarını çalıştırır |
 | `python run_tests.py -v` | Testlerin konsol çıktısını detaylandırır |
 
 ### Sadece test — modeli / YOLO çalıştırmadan
@@ -178,8 +176,7 @@ training_metrics/
 | CASCADE | Çoklu eş zamanlı arıza |
 | NOMINAL | Baz durum — tüm sistemler yeşil |
 
-> Senaryo seti `tests/fault_scenarios.py` + `tests/test_ai_vision_v4.py`
-> (tek kaynak) üzerinden `ALL_SCENARIOS` olarak toplanır ve
+> Senaryo seti `tests/fault_scenarios.py` (tek kaynak) üzerinden
 > `test_real_vision.py` içinde parametrize edilir.
 
 ---
